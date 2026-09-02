@@ -35,7 +35,8 @@ export class WebhookHttpTransport{
   async post(rawUrl:string,body:string,headers:Record<string,string>,timeoutMs:number):Promise<WebhookHttpResult>{
     const{url,address}=await resolveSafeWebhookUrl(rawUrl,this.options.resolver, this.options);const started=Date.now();
     return new Promise((resolve,reject)=>{
-      const request=(url.protocol==='https:'?httpsRequest:httpRequest)(url,{method:'POST',headers:{...headers,'Content-Length':Buffer.byteLength(body)},lookup:(_hostname,_options,callback)=>callback(null,address.address,address.family),servername:url.hostname},response=>{
+      const pinnedLookup=((_hostname:string,options:unknown,callback?:unknown)=>{const cb=(typeof options==='function'?options:callback) as (...args:unknown[])=>void;if(typeof options==='object'&&options!==null&&'all' in options&&(options as {all?:boolean}).all)cb(null,[address]);else cb(null,address.address,address.family);}) as typeof import('node:dns').lookup;
+      const request=(url.protocol==='https:'?httpsRequest:httpRequest)(url,{method:'POST',headers:{...headers,'Content-Length':Buffer.byteLength(body)},lookup:pinnedLookup,servername:url.hostname},response=>{
         response.resume();response.once('end',()=>resolve({status:response.statusCode??0,retryAfter:Array.isArray(response.headers['retry-after'])?response.headers['retry-after'][0]:response.headers['retry-after'],durationMs:Date.now()-started}));
       });
       request.setTimeout(timeoutMs,()=>request.destroy(new WebhookHttpError('TIMEOUT','Webhook request timed out',true)));
