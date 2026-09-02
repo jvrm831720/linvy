@@ -1,4 +1,4 @@
-# Linvy API V0.2.2
+# Linvy API V0.2.3
 
 The dashboard is a client of this API; the API and worker remain operational without the frontend.
 
@@ -55,3 +55,23 @@ The PostgreSQL claim is exclusive (`FOR UPDATE SKIP LOCKED`) and protected by `l
 HTTP 2xx succeeds. Timeouts, transient network/DNS failures, 408, 425, 429, and 5xx retry with capped exponential backoff; valid `Retry-After` on 429/503 is honored within `WEBHOOK_RETRY_MAX_MS`. Other 3xx/4xx responses, invalid URLs, disabled registrations, SSRF violations, and undecryptable secrets are terminal. After `WEBHOOK_MAX_ATTEMPTS`, the delivery becomes `failed`. Redirects are never followed and response bodies are never retained.
 
 Production delivery requires HTTPS. Before connection, the dispatcher resolves DNS, rejects every result if any address is loopback, private, link-local, metadata-adjacent, multicast, or reserved, and pins the request socket to the validated address while preserving the original TLS hostname. This closes the ordinary second-resolution DNS rebinding path. Residual network-layer controls such as an egress firewall remain recommended for defense in depth.
+
+## Public API contract
+
+Authenticate with `Authorization: Bearer <key>`. Every response, including errors, contains `X-Request-ID`; a safe client-provided value is preserved. Invalid input returns HTTP 400 with `VALIDATION_ERROR` and safe field details. Public DTOs use snake_case and never expose database rows, hashes, encrypted secrets, job payloads, or lease ownership.
+
+All collections return `{"data": [...], "next_cursor": "..."}`. The opaque cursor uses stable descending creation time plus ID where timestamps exist, otherwise descending ID. `limit` defaults to 25 and accepts 1–100. Pass `cursor` and the same filters to retrieve the next page.
+
+Available scopes are: `lines:read`, `providers:read`, `people:read`, `people:write`, `assignments:read`, `assignments:write`, `incidents:read`, `incidents:write`, `replacements:read`, `replacements:write`, `provider_orders:read`, `events:read`, `webhooks:read`, `webhooks:write`, `webhook_deliveries:read`, `api_keys:read`, and `api_keys:write`. The development bootstrap key has all scopes. API keys can manage keys only with the explicit `api_keys:*` scopes.
+
+```bash
+curl -H "Authorization: Bearer $LINVY_KEY" 'http://localhost:3333/v1/lines?limit=25&region=RJ'
+curl -X POST -H "Authorization: Bearer $LINVY_ADMIN_KEY" -H 'Content-Type: application/json' \
+  -d '{"name":"ERP Production","scopes":["lines:read","incidents:write","replacements:write"]}' \
+  http://localhost:3333/v1/api-keys
+curl -X DELETE -H "Authorization: Bearer $LINVY_ADMIN_KEY" http://localhost:3333/v1/api-keys/key_id
+```
+
+Read endpoints cover lines and pool, providers, people, assignment history, incidents, replacements, Provider Orders, events, webhooks, webhook deliveries, and API keys. Mutations are intentionally limited to people, assignments, incidents, replacement commands, webhooks, and API-key lifecycle. Every lookup and mutation is scoped to the authenticated organization.
+
+Linvy V0.2.3 still uses `SandboxProvider`. Provision, suspend, resume, terminate, usage, billing, smart routing, reconciliation, and real-provider endpoints are deliberately unsupported until Provider Readiness; the API does not fake telecom side effects or usage data.

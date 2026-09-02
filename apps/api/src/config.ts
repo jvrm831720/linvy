@@ -1,6 +1,7 @@
 import { z } from 'zod';
 const defaultDevelopmentKey = Buffer.alloc(32, 7).toString('base64');
 export const config = z.object({
+  NODE_ENV: z.enum(['development','test','production']).default('development'),
   DATABASE_URL: z.string().min(1), PORT: z.coerce.number().default(3333),
   WORKER_POLL_MS: z.coerce.number().int().positive().default(1000),
   JOB_LEASE_MS: z.coerce.number().int().positive().default(30_000),
