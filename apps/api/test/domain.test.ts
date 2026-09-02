@@ -1,0 +1,2 @@
+import {describe,it,expect} from 'vitest';import {assertReplacementAllowed,assertTransition} from '../src/domain.js';
+describe('domain invariants',()=>{it('blocks policy circumvention',()=>expect(()=>assertReplacementAllowed('fraud')).toThrow(/risk review/i));it('blocks resurrection of terminated lines',()=>expect(()=>assertTransition('terminated','active')).toThrow(/Cannot transition/));it('allows operational replacement reasons',()=>expect(()=>assertReplacementAllowed('sim_failure')).not.toThrow());});

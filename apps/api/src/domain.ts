@@ -1,0 +1,5 @@
+export const replacementReasons=['sim_failure','lost_or_stolen','device_change','provider_failure'] as const;
+export type ReplacementReason=typeof replacementReasons[number];
+const transitions={available:['provisioning'],provisioning:['active','available'],active:['suspended','replaced','terminated'],suspended:['active','replaced','terminated'],terminated:[],replaced:[]} as const;
+export function assertTransition(from:keyof typeof transitions,to:string){if(!(transitions[from] as readonly string[]).includes(to)){const e=new Error(`Cannot transition line from ${from} to ${to}`);Object.assign(e,{code:'INVALID_STATE_TRANSITION',statusCode:409});throw e;}}
+export function assertReplacementAllowed(reason:string){if(['policy_block','fraud','abuse'].includes(reason)){const e=new Error('Replacement requires risk review.');Object.assign(e,{code:'RISK_REVIEW_REQUIRED',statusCode:409});throw e;}if(!replacementReasons.includes(reason as ReplacementReason)){const e=new Error('Unsupported replacement reason.');Object.assign(e,{code:'VALIDATION_ERROR',statusCode:400});throw e;}}

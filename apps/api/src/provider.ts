@@ -1,0 +1,4 @@
+import {randomUUID} from 'node:crypto';
+export type ProviderOperation={reference:string;status:'completed'|'failed';error?:string};
+export interface ConnectivityProvider{activate(resourceId:string):Promise<ProviderOperation>;getStatus(resourceId:string):Promise<'available'|'active'|'suspended'>;}
+export class SandboxProvider implements ConnectivityProvider{constructor(private mode: 'success'|'failure'|'timeout'= 'success'){}async activate(resourceId:string){if(this.mode==='timeout')await new Promise((_,reject)=>setTimeout(()=>reject(new Error('Sandbox provider timeout')),50));if(this.mode==='failure')return{reference:`sbx_${randomUUID()}`,status:'failed' as const,error:'Sandbox activation failure'};return{reference:`sbx_${randomUUID()}`,status:'completed' as const};}async getStatus(){return 'active' as const;}}
