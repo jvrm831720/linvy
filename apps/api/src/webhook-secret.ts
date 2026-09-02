@@ -1,4 +1,1 @@
-import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
-const VERSION='v1';
-export function encryptWebhookSecret(plaintext:string,masterKey:Buffer){const iv=randomBytes(12);const cipher=createCipheriv('aes-256-gcm',masterKey,iv);const ciphertext=Buffer.concat([cipher.update(plaintext,'utf8'),cipher.final()]);return[VERSION,iv.toString('base64url'),cipher.getAuthTag().toString('base64url'),ciphertext.toString('base64url')].join('.');}
-export function decryptWebhookSecret(encrypted:string,masterKey:Buffer){const[version,iv,tag,ciphertext]=encrypted.split('.');if(version!==VERSION||!iv||!tag||!ciphertext)throw new Error('Invalid encrypted webhook secret envelope');const decipher=createDecipheriv('aes-256-gcm',masterKey,Buffer.from(iv,'base64url'));decipher.setAuthTag(Buffer.from(tag,'base64url'));return Buffer.concat([decipher.update(Buffer.from(ciphertext,'base64url')),decipher.final()]).toString('utf8');}
+import{decryptSecret,encryptSecret}from'./secret-envelope.js';export const encryptWebhookSecret=encryptSecret;export const decryptWebhookSecret=decryptSecret;

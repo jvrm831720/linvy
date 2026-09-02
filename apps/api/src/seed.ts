@@ -1,11 +1,14 @@
 import {createHash} from 'node:crypto';
 import {db,sql} from './db.js';
-import {apiKeys,assignments,lines,organizations,people,providers} from './db/schema.js';
+import {apiKeys,assignments,lines,organizations,people,providerConnections,providers} from './db/schema.js';
 import {config} from './config.js';
 import {createWebhookRegistration} from './webhook-service.js';
+import {encryptProviderCredentials} from './provider-credentials.js';
 
 await db.insert(organizations).values({id:'org_acme',name:'Acme Operações'}).onConflictDoNothing();
 await db.insert(providers).values({id:'prv_sandbox',organizationId:'org_acme',kind:'sandbox',name:'Linvy Sandbox'}).onConflictDoNothing();
+await db.insert(providers).values({id:'prv_sandbox_secondary',organizationId:'org_acme',kind:'sandbox',name:'Linvy Sandbox Secondary'}).onConflictDoNothing();
+await db.insert(providerConnections).values([{id:'pcn_sandbox',organizationId:'org_acme',providerId:'prv_sandbox',adapterType:'sandbox',encryptedCredentials:encryptProviderCredentials({},config.PROVIDER_MASTER_KEY)},{id:'pcn_sandbox_secondary',organizationId:'org_acme',providerId:'prv_sandbox_secondary',adapterType:'sandbox',encryptedCredentials:encryptProviderCredentials({},config.PROVIDER_MASTER_KEY)}]).onConflictDoNothing();
 await db.insert(people).values({id:'per_carlos',organizationId:'org_acme',name:'Carlos Mendes'}).onConflictDoNothing();
 await db.insert(lines).values([
   {id:'lin_5521',organizationId:'org_acme',providerId:'prv_sandbox',phoneNumber:'+55 21 98888-5521',region:'RJ',simType:'esim',status:'active'},

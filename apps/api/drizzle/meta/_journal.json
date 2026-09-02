@@ -29,6 +29,13 @@
       "when": 1788379918126,
       "tag": "0003_even_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788383455653,
+      "tag": "0004_wonderful_scorpion",
+      "breakpoints": true
     }
   ]
 }

@@ -74,4 +74,20 @@ curl -X DELETE -H "Authorization: Bearer $LINVY_ADMIN_KEY" http://localhost:3333
 
 Read endpoints cover lines and pool, providers, people, assignment history, incidents, replacements, Provider Orders, events, webhooks, webhook deliveries, and API keys. Mutations are intentionally limited to people, assignments, incidents, replacement commands, webhooks, and API-key lifecycle. Every lookup and mutation is scoped to the authenticated organization.
 
-Linvy V0.2.3 still uses `SandboxProvider`. Provision, suspend, resume, terminate, usage, billing, smart routing, reconciliation, and real-provider endpoints are deliberately unsupported until Provider Readiness; the API does not fake telecom side effects or usage data.
+Linvy still uses `SandboxProvider`. Public provision, suspend, resume, terminate, usage, billing, smart routing, and real-provider endpoints remain deliberately unsupported; the API does not fake telecom side effects or usage data.
+
+## Provider Readiness V0.2.4
+
+The Replacement Engine resolves adapters through `ProviderRegistry.get(target.provider_id)`; the selected connectivity line, not a global adapter or smart-routing rule, determines the provider. Every adapter declares `activation` and `operation_status` capabilities plus explicit false values for unsupported suspend, resume, terminate, usage and provisioning operations.
+
+Provider commands carry the deterministic operation key `{provider_id}:activate:{replacement_id}`. Future adapters must map it to native provider idempotency when available. Linvy does not promise exactly-once external side effects: operation keys plus status reconciliation reduce duplicates, while providers without native idempotency require an adapter-specific strategy.
+
+Provider calls have a `PROVIDER_OPERATION_TIMEOUT_MS` boundary and typed errors: `PROVIDER_TIMEOUT`, `PROVIDER_UNAVAILABLE`, `PROVIDER_AUTH_FAILED`, `PROVIDER_RATE_LIMITED`, `PROVIDER_INVALID_REQUEST`, `PROVIDER_CAPABILITY_UNSUPPORTED`, `PROVIDER_OUTCOME_UNKNOWN`, and `PROVIDER_NOT_CONFIGURED`. Classification uses explicit `retryable`, `outcome_unknown`, and terminal semantics rather than message parsing.
+
+An unknown activation moves the Provider Order to `unknown` and the replacement to `reconciling`, then creates one PostgreSQL `provider_order.reconcile` job. Reconciliation calls `getOperationStatus` and never calls `activate` again. Confirmed success completes the normal assignment/event/outbox transaction; confirmed failure safely releases the target. A permanently unknown result becomes `reconciliation_required` after the configured limit and preserves the reserved target for human/provider investigation.
+
+Workers renew owned leases every `JOB_HEARTBEAT_MS`, which must be less than `JOB_LEASE_MS`. A dead process stops heartbeats and remains recoverable after lease expiry; loss of ownership raises `JOB_LEASE_LOST` and prevents the old worker from committing completion.
+
+`provider_connections` stores adapter type, encrypted credentials, key version and basic health timestamps/counters. Credentials use AES-256-GCM under the independent `PROVIDER_MASTER_KEY`, are decrypted only at an adapter boundary, and never appear in public provider DTOs or logs. Public provider responses expose only capabilities and derived `healthy`, `degraded`, or `unknown` health.
+
+To add an adapter, implement `ConnectivityProvider`, declare honest capabilities, honor operation keys, classify errors with `ProviderError`, implement `getOperationStatus` if advertised, decrypt credentials only at the boundary, register by provider ID, and run the reusable provider contract suite. V0.2.4 activates only `SandboxProvider`; no real telecom provider or new telecom endpoint is included.
