@@ -1,0 +1,2 @@
+ALTER TABLE "api_keys" ADD COLUMN "name" text DEFAULT 'Unnamed key' NOT NULL;--> statement-breakpoint
+CREATE INDEX "api_keys_org_created_idx" ON "api_keys" USING btree ("organization_id","created_at","id");

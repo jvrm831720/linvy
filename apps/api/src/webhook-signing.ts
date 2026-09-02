@@ -1,0 +1,5 @@
+import {createHmac} from 'node:crypto';
+export function stableJson(value:unknown):string{if(value===null||typeof value!=='object')return JSON.stringify(value);if(Array.isArray(value))return`[${value.map(stableJson).join(',')}]`;return`{${Object.entries(value as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>`${JSON.stringify(key)}:${stableJson(item)}`).join(',')}}`;}
+export function signWebhook(secret:string,timestamp:string,rawBody:string){return`v1=${createHmac('sha256',secret).update(`${timestamp}.${rawBody}`).digest('hex')}`;}
+export function classifyStatus(status:number){if(status>=200&&status<=299)return'success' as const;if([408,425,429].includes(status)||(status>=500&&status<=599))return'retryable' as const;return'terminal' as const;}
+export function retryDelay(attempt:number,base:number,max:number,retryAfter:string|undefined,now=new Date()){let requested=0;if(retryAfter){const seconds=Number(retryAfter);requested=Number.isFinite(seconds)?seconds*1000:Math.max(0,new Date(retryAfter).getTime()-now.getTime());}return Math.min(max,Math.max(Math.min(max,base*2**Math.max(0,attempt-1)),requested));}

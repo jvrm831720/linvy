@@ -1,0 +1,56 @@
+name: Linvy API hardening
+on:
+  push:
+    branches: [feat/api-first-v0.2]
+  pull_request:
+    paths: ['apps/api/**', '.github/workflows/api-hardening.yml']
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: linvy_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d linvy_test"
+          --health-interval 2s --health-timeout 2s --health-retries 20
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/linvy_test
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/linvy_test
+      LINVY_BOOTSTRAP_API_KEY: lv_test_ci_bootstrap_key
+      WEBHOOK_MASTER_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      JOB_LEASE_MS: 100
+      JOB_HEARTBEAT_MS: 25
+      PROVIDER_OPERATION_TIMEOUT_MS: 500
+      MAX_JOB_ATTEMPTS: 3
+      JOB_RETRY_BASE_MS: 10
+      WEBHOOK_LEASE_MS: 100
+      WEBHOOK_MAX_ATTEMPTS: 3
+      WEBHOOK_RETRY_BASE_MS: 10
+      WEBHOOK_RETRY_MAX_MS: 1000
+      WEBHOOK_TIMEOUT_MS: 500
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - name: Migrate clean PostgreSQL
+        run: npm run db:migrate
+      - name: Seed sandbox
+        run: npm run db:seed
+      - name: PostgreSQL integration and concurrency tests
+        run: npm test
+      - name: TypeScript build
+        run: npm run build
+      - name: Verify Drizzle schema is generated
+        run: npm run db:generate && git diff --exit-code

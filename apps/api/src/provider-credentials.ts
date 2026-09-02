@@ -1,0 +1,1 @@
+import{decryptSecret,encryptSecret}from'./secret-envelope.js';export const encryptProviderCredentials=(value:unknown,key:Buffer)=>encryptSecret(JSON.stringify(value),key);export const decryptProviderCredentials=(value:string,key:Buffer)=>JSON.parse(decryptSecret(value,key)) as Record<string,unknown>;
