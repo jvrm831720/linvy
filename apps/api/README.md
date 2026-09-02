@@ -1,4 +1,4 @@
-# Linvy API V0.2
+# Linvy API V0.2.1
 
 The dashboard is a client of this API; the API and worker remain operational without the frontend.
 
@@ -20,3 +20,5 @@ Docs: `http://localhost:3333/docs`. Health: `GET /health`.
 The first milestone implements `incident → replacement → PostgreSQL job → SandboxProvider → ProviderOrder → assignment transfer → event → webhook delivery record`. Replacement creation requires `Authorization: Bearer lv_test_...` and `Idempotency-Key` and returns `202 Accepted`.
 
 API keys are SHA-256 hashed; plaintext bootstrap keys must only be used to seed development. Webhook delivery rows are persisted for a dedicated dispatcher; no network delivery is executed by the replacement transaction.
+
+V0.2.1 reserves pool resources atomically with `FOR UPDATE SKIP LOCKED`, recovers stale job leases, applies bounded exponential retry, uses stable provider operation keys, and encrypts recoverable webhook signing secrets with AES-256-GCM. API keys remain hash-only.
