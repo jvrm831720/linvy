@@ -29,6 +29,11 @@ jobs:
       JOB_LEASE_MS: 100
       MAX_JOB_ATTEMPTS: 3
       JOB_RETRY_BASE_MS: 10
+      WEBHOOK_LEASE_MS: 100
+      WEBHOOK_MAX_ATTEMPTS: 3
+      WEBHOOK_RETRY_BASE_MS: 10
+      WEBHOOK_RETRY_MAX_MS: 1000
+      WEBHOOK_TIMEOUT_MS: 500
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -46,4 +51,4 @@ jobs:
       - name: TypeScript build
         run: npm run build
       - name: Verify Drizzle schema is generated
-        run: npm run db:generate
+        run: npm run db:generate && git diff --exit-code
