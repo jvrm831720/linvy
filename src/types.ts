@@ -1,0 +1,9 @@
+export type LineStatus = 'active' | 'available' | 'suspended' | 'incident' | 'provisioning' | 'retired';
+export type Severity = 'critical' | 'warning';
+export type Person = { id:string; name:string; initials:string; role:string; team:string; email:string; location:string };
+export type Line = { id:string; number:string; provider:string; providerColor:string; status:LineStatus; plan:string; dataUsed:number; dataLimit:number; simType:'eSIM'|'SIM físico'; iccid:string; eid?:string; personId?:string; team?:string; costCenter?:string; device?:string; region:string; activatedAt?:string };
+export type Incident = { id:string; lineId:string; title:string; reason:string; severity:Severity; status:'open'|'investigating'|'resolved'|'risk_review'; source:'Linvy'|'Provider'|'Cliente'; detectedAt:string; resolvedAt?:string; duration?:string };
+export type AuditEvent = { id:string; type:string; title:string; detail:string; time:string; actor:string };
+export type ProviderOrder = { id:string; operation:string; provider:string; source:string; target?:string; status:'pending'|'processing'|'waiting_provider'|'completed'|'failed'; createdAt:string; completedAt?:string };
+export type Replacement = { id:string; sourceLineId:string; targetLineId:string; personId?:string; reason:string; status:'completed'|'failed'; durationSeconds:number; createdAt:string };
+export type AppState = { lines:Line[]; people:Person[]; incidents:Incident[]; audit:AuditEvent[]; orders:ProviderOrder[]; replacements:Replacement[] };
