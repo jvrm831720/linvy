@@ -91,3 +91,23 @@ Workers renew owned leases every `JOB_HEARTBEAT_MS`, which must be less than `JO
 `provider_connections` stores adapter type, encrypted credentials, key version and basic health timestamps/counters. Credentials use AES-256-GCM under the independent `PROVIDER_MASTER_KEY`, are decrypted only at an adapter boundary, and never appear in public provider DTOs or logs. Public provider responses expose only capabilities and derived `healthy`, `degraded`, or `unknown` health.
 
 To add an adapter, implement `ConnectivityProvider`, declare honest capabilities, honor operation keys, classify errors with `ProviderError`, implement `getOperationStatus` if advertised, decrypt credentials only at the boundary, register by provider ID, and run the reusable provider contract suite. V0.2.4 activates only `SandboxProvider`; no real telecom provider or new telecom endpoint is included.
+
+## Linvy Guard V0.5
+
+Linvy Guard is an optional operational-intelligence and safety layer. The core API continues to work while `guard-worker` is stopped. The worker reads the existing durable `events` store with a per-organization `events-v1` checkpoint, lease, heartbeat and stale-lock recovery. Reprocessing is safe because signals, waves, actions, alerts, Guard events and the existing webhook outbox use database dedupe constraints.
+
+The pipeline is `event -> signal -> deterministic correlation/risk -> cluster -> playbook -> alert -> safe action`. Guard never creates a replacement. Fraud, suspected abuse, platform policy blocks, compliance review and enforcement create a critical compliance signal and an `approval_required` `manual_review_required` action; they never rotate a number or retry an operation to bypass enforcement.
+
+Run `npm run guard-worker`. Configuration is `GUARD_POLL_MS`, `GUARD_LEASE_MS`, `GUARD_HEARTBEAT_MS`, `GUARD_BATCH_SIZE`, and the independent 32-byte base64 `GUARD_CHANNEL_MASTER_KEY`. Channel credentials use AES-256-GCM and are never returned in public DTOs. `SandboxChannel` is executable in tests; email, Slack webhook, Telegram and Guard webhook channels are explicit prepared adapters that require later transport configuration.
+
+Provider Health supports auditable 15-minute, 1-hour and 24-hour PostgreSQL windows. Defaults are centralized: at least 10 operations, 10% failure/unknown for degraded and 25% for critical; three consecutive failures also indicate degraded. Baseline is the preceding equivalent window and is `null` with `INSUFFICIENT_BASELINE` below ten observations. Risk is the clamped sum of `{rule_id, weight, evidence}` factors: 0–24 low, 25–49 medium, 50–74 high and 75–100 critical.
+
+Incident waves require five distinct lines on the same provider and region in a ten-minute bucket. A transaction advisory lock plus `(organization_id, wave_key)` uniqueness ensures one cluster. Membership is normalized. System playbooks are `PROVIDER_OUTAGE`, `SIM_FAILURE`, `ACTIVATION_FAILURE_WAVE`, `OUTCOME_UNKNOWN`, `RECONCILIATION_REQUIRED`, and `COMPLIANCE_REVIEW`.
+
+Alerts have a 30-minute cooldown, occurrence counter and severity escalation. Orchestration-changing actions default to `approval_required`. `pause_provider_activations` only sets an internal policy for future activations; it does not suspend lines, contact telecom providers, interrupt reconciliation, or release unknown-outcome targets. The engine checks this explicit policy immediately before a new activation and raises `PROVIDER_GUARD_BLOCKED`.
+
+Guard endpoints cover `/v1/guard/overview`, signals, risk, clusters, rules, playbooks and runs, alerts and acknowledgement, actions and approval/rejection, and structured policy changes. Explicit scopes are `guard:read`, `guard:signals:read`, `guard:risk:read`, `guard:rules:read|write`, `guard:playbooks:read`, `guard:alerts:read|write`, `guard:actions:read|write`, and `guard:policy:read|write`. All private queries bind the authenticated `organization_id`; system playbooks and global policies are explicitly marked. DTOs use snake_case and omit credentials, keys, leases and checkpoints.
+
+Policy Intelligence is structured ingestion, not scraping. High/critical changes create a signal and alert but never mutate an adapter. `DeterministicGuardExplainer` uses supplied evidence only; no LLM is connected and no private reasoning is persisted.
+
+Limitations: provider observations use `SandboxProvider` until real adapters exist; health uses simple PostgreSQL aggregation; notification transports other than sandbox are prepared but inactive; there is no UI, smart routing, external policy monitor, ML, Redis, Kafka or automatic circuit breaker.

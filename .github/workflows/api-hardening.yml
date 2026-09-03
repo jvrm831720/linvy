@@ -1,7 +1,7 @@
 name: Linvy API hardening
 on:
   push:
-    branches: [feat/api-first-v0.2]
+    branches: [feat/api-first-v0.2, feat/linvy-guard-v0.5]
   pull_request:
     paths: ['apps/api/**', '.github/workflows/api-hardening.yml']
 jobs:
@@ -36,6 +36,9 @@ jobs:
       WEBHOOK_RETRY_BASE_MS: 10
       WEBHOOK_RETRY_MAX_MS: 1000
       WEBHOOK_TIMEOUT_MS: 500
+      GUARD_CHANNEL_MASTER_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      GUARD_LEASE_MS: 100
+      GUARD_HEARTBEAT_MS: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

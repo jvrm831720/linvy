@@ -1,0 +1,20 @@
+import{describe,expect,it}from'vitest';import{calculateRisk,DeterministicGuardExplainer,evaluateRule,isComplianceEvent,providerHealthStatus,riskLevel,selectPlaybook,waveKey}from'../src/guard/domain.js';import{SandboxChannel}from'../src/guard/alert-channels.js';
+const metrics=(overrides:any={})=>({operations_total:10,operations_completed:10,operations_failed:0,operations_unknown:0,failure_rate:0,unknown_rate:0,consecutive_failures:0,last_success_at:null,last_failure_at:null,baseline_failure_rate:null,baseline_status:'INSUFFICIENT_BASELINE' as const,...overrides});
+describe('Linvy Guard deterministic domain',()=>{
+ it('classifies risk boundaries',()=>expect([riskLevel(0),riskLevel(24),riskLevel(25),riskLevel(50),riskLevel(75),riskLevel(100)]).toEqual(['low','low','medium','high','critical','critical']));
+ it('clamps explainable risk to 0..100',()=>expect(calculateRisk([{rule_id:'a',weight:80,evidence:{}},{rule_id:'b',weight:50,evidence:{}}])).toMatchObject({score:100,level:'critical'}));
+ it('retains factors for audit',()=>expect(calculateRisk([{rule_id:'provider_degraded',weight:55,evidence:{rate:.2}}]).factors[0]).toEqual({rule_id:'provider_degraded',weight:55,evidence:{rate:.2}}));
+ it('classifies provider degradation at configured sample',()=>expect(providerHealthStatus(metrics({failure_rate:.10}))).toBe('degraded'));
+ it('classifies provider critical at configured sample',()=>expect(providerHealthStatus(metrics({failure_rate:.25}))).toBe('critical'));
+ it('does not infer health without operations',()=>expect(providerHealthStatus(metrics({operations_total:0}))).toBe('unknown'));
+ it('uses consecutive failures even below sample',()=>expect(providerHealthStatus(metrics({operations_total:2,consecutive_failures:3}))).toBe('degraded'));
+ it('enforces rule minimum sample',()=>expect(evaluateRule({metric:'provider.failure_rate',operator:'>=',value:.1,minimum_sample:10},.5,2)).toBe(false));
+ it('evaluates allowlisted comparison',()=>expect(evaluateRule({metric:'provider.failure_rate',operator:'>=',value:.1},.2,10)).toBe(true));
+ it('detects every compliance reason',()=>{for(const reason of['fraud','suspected_abuse','platform_policy_block','compliance_review','enforcement'])expect(isComplianceEvent('event',{reason})).toBe(true)});
+ it('selects safe unknown-outcome playbook',()=>expect(selectPlaybook('provider.outcome_unknown')).toBe('OUTCOME_UNKNOWN'));
+ it('selects compliance playbook',()=>expect(selectPlaybook('compliance.review')).toBe('COMPLIANCE_REVIEW'));
+ it('creates deterministic ten-minute wave keys',()=>expect(waveKey('p','RJ',new Date('2026-01-01T00:01:00Z'))).toBe(waveKey('p','RJ',new Date('2026-01-01T00:09:00Z'))));
+ it('explains only supplied data',()=>expect(new DeterministicGuardExplainer().explain({count:17,subject:'falha de ativação',minutes:12,rate:.18,baseline:.02,region:'RJ'})).toContain('17 ocorrências'));
+ it('states insufficient baseline instead of inventing one',()=>expect(new DeterministicGuardExplainer().explain({count:1,subject:'falha',minutes:15,baseline:null})).toContain('Baseline insuficiente'));
+ it('delivers fully through the sandbox alert adapter',async()=>{const channel=new SandboxChannel();await channel.send({id:'a',type:'x',severity:'high',title:'x',summary:'x',created_at:new Date(0).toISOString()});expect(channel.deliveries).toHaveLength(1)});
+});
