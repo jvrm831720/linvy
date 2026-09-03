@@ -1,0 +1,4 @@
+export type GuardAlertPayload={id:string;type:string;severity:string;title:string;summary:string;created_at:string};
+export interface GuardNotificationChannel{readonly type:'webhook'|'email'|'slack_webhook'|'telegram_bot'|'sandbox';send(payload:GuardAlertPayload):Promise<{reference?:string}>}
+export class SandboxChannel implements GuardNotificationChannel{readonly type='sandbox' as const;readonly deliveries:GuardAlertPayload[]=[];async send(payload:GuardAlertPayload){this.deliveries.push(structuredClone(payload));return{reference:`sandbox:${payload.id}`}}}
+export class PreparedExternalChannel implements GuardNotificationChannel{constructor(readonly type:'webhook'|'email'|'slack_webhook'|'telegram_bot'){}async send(_payload:GuardAlertPayload):Promise<{reference?:string}>{throw Object.assign(Error(`${this.type} channel is not configured in Guard V0.5`),{code:'GUARD_CHANNEL_NOT_CONFIGURED'})}}
